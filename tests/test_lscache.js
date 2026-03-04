@@ -7,7 +7,7 @@ import {
   purgeLSCache,
   purgeLSCacheByTags,
   verifyPurgeRequest
-} from "../src/index.js";
+} from "lscache-nestjs";
 
 function createHeaders(initial = {}) {
   const map = new Map(

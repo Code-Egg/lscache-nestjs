@@ -31,8 +31,13 @@ jobs:
           rm -rf demo
           nest new demo --package-manager npm
           cd demo
+          echo "require('./dist/main');" > app.js
+          npm run build; pkill lsnode
+
           echo 'Download lscach-nestjs'
           npm install git+https://github.com/Code-Egg/lscache-nestjs.git
+          
           echo 'Setup test'
-          sudo curl -o app/tests/test_lscache.py https://raw.githubusercontent.com/Code-Egg/lscache-nestjs/main/tests/test_lscache.js
+          sudo curl -o app/test/test_lscache.py https://raw.githubusercontent.com/Code-Egg/lscache-nestjs/main/tests/test_lscache.js
           echo 'Test'
+          node --test test/test_lscache.js
