@@ -25,19 +25,19 @@ jobs:
           curl -sk -o per-instance.sh https://raw.githubusercontent.com/litespeedtech/ls-cloud-image/master/Cloud-init/per-instance.sh
           sudo bash per-instance.sh
           pwd
-          npm install -g @nestjs/cli
-          nest --version
+          sudo npm install -g @nestjs/cli
+          sudo nest --version
           cd /usr/local/lsws/Example/html/
-          rm -rf demo
-          nest new demo --package-manager npm
+          sudo rm -rf demo
+          sudo nest new demo --package-manager npm
           cd demo
           echo "require('./dist/main');" > app.js
-          npm run build; pkill lsnode
+          sudo npm run build; pkill lsnode
 
           echo 'Download lscach-nestjs'
-          npm install git+https://github.com/Code-Egg/lscache-nestjs.git
+          sudo npm install git+https://github.com/Code-Egg/lscache-nestjs.git
           
           echo 'Setup test'
           sudo curl -o app/test/test_lscache.py https://raw.githubusercontent.com/Code-Egg/lscache-nestjs/main/tests/test_lscache.js
           echo 'Test'
-          node --test test/test_lscache.js
+          sudo node --test test/test_lscache.js
