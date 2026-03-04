@@ -26,11 +26,11 @@ jobs:
           sudo bash per-instance.sh
           pwd
           npm install -g @nestjs/cli
+          nest --version
           cd /usr/local/lsws/Example/html/
           rm -rf demo
-          nest new demo
+          nest new demo --package-manager npm
           cd demo
-          nest --version
           echo 'Download lscach-nestjs'
           npm install git+https://github.com/Code-Egg/lscache-nestjs.git
           echo 'Setup test'
