@@ -30,8 +30,9 @@ jobs:
           cd /usr/local/lsws/Example/html/
           sudo rm -rf demo
           sudo nest new demo --package-manager npm
-          cd demo
+          cd demo; sudo ls -al
           sudo echo "require('./dist/main');" > app.js
+          echo 'npm run build'
           sudo npm run build; sudo pkill lsnode
 
           echo 'Download lscach-nestjs'
