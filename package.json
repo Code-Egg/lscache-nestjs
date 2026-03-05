@@ -21,6 +21,14 @@
     "nestjs",
     "cache"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Code-Egg/lscache-nestjs.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Code-Egg/lscache-nestjs/issues"
+  },
+  "homepage": "https://github.com/Code-Egg/lscache-nestjs#readme",
   "author": "Egg",
   "license": "MIT"
 }
