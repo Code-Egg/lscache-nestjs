@@ -1,87 +1,171 @@
-# lscache-nextjs
+# lscache-nestjs
 
-LSCache helpers for Next.js applications running behind LiteSpeed.
+A simple LiteSpeed Cache helper package for NestJS applications.
 
-## What this provides
+## Prerequisite
 
-- Middleware helper to set LSCache response headers
-- Cookie-based cache bypass (for logged-in/session users)
-- Purge request verification helper
-- Purge tag builder helper
+- Run your NestJS app behind LiteSpeed/OpenLiteSpeed.
+- Ensure LiteSpeed cache is enabled and writable.
 
-## Install
+## Installation
 
 ```bash
-npm i lscache-nextjs
+npm i lscache-nestjs
 ```
 
-## Usage in Next.js middleware
+## Basic usage (NestJS / Express middleware)
 
-```js
-// middleware.js
-import { NextResponse } from "next/server";
-import { lscacheMiddleware } from "lscache-nextjs";
+```ts
+// main.ts
+import { NestFactory } from "@nestjs/core";
+import { AppModule } from "./app.module";
+import { lscacheMiddleware } from "lscache-nestjs";
 
-const applyLSCache = lscacheMiddleware({
-  shouldCache: (req) => req.method === "GET" && !req.nextUrl.pathname.startsWith("/api"),
-  cookieBypassList: ["next-auth.session-token", "session"],
-  privateOptions: {
-    mode: "cache",
-    maxAge: 120,
-    staleWhileRevalidate: 300,
-    staleIfError: 86400
-  }
-});
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
 
-export function middleware(request) {
-  const response = NextResponse.next();
-  return applyLSCache(request, response);
-}
-```
-
-## Purge endpoint example
-
-```js
-// app/api/lscache/purge/route.js
-import { NextResponse } from "next/server";
-import {
-  verifyPurgeRequest,
-  buildPurgeTags,
-  purgeLSCache,
-  purgeAllLSCache,
-  purgeLSCacheByTags
-} from "lscache-nextjs";
-
-export async function POST(request) {
-  if (!verifyPurgeRequest(request, { token: process.env.LSCACHE_PURGE_TOKEN })) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const payload = await request.json();
-  const base = {
-    endpoint: process.env.LSCACHE_PURGE_ENDPOINT,
-    token: process.env.LSCACHE_PURGE_TOKEN
-  };
-
-  if (payload?.purgeAll) {
-    await purgeAllLSCache(base);
-    return NextResponse.json({ ok: true, scope: "all" });
-  }
-
-  const tags = buildPurgeTags(payload);
-  if (tags.length > 0) {
-    await purgeLSCacheByTags(tags, base);
-    return NextResponse.json({ ok: true, scope: "tags", tags });
-  }
-
-  await purgeLSCache({
-    ...base,
-    urls: payload?.urls || []
+  const applyLSCache = lscacheMiddleware({
+    shouldCache: (req) => req.method === "GET",
+    cookieBypassList: ["session", "next-auth.session-token"],
+    privateOptions: {
+      mode: "cache",
+      maxAge: 180
+    },
+    publicOptions: {
+      maxAge: 60
+    }
   });
 
-  return NextResponse.json({ ok: true, scope: "urls" });
+  app.use((req, res, next) => {
+    applyLSCache(req, res);
+    next();
+  });
+
+  await app.listen(3000);
+}
+bootstrap();
+```
+
+## Real example: main page and post page
+
+If you want different cache behavior by URL, create multiple middleware instances and apply by route:
+
+```ts
+// main.ts
+import { NestFactory } from "@nestjs/core";
+import { AppModule } from "./app.module";
+import { lscacheMiddleware } from "lscache-nestjs";
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+
+  const mainPageCache = lscacheMiddleware({
+    publicOptions: {
+      maxAge: 120,
+      tags: ["home"]
+    }
+  });
+
+  const postPageCache = lscacheMiddleware({
+    publicOptions: {
+      maxAge: 300,
+      tags: ["post"]
+    }
+  });
+
+  app.use((req, res, next) => {
+    if (req.path === "/") {
+      mainPageCache(req, res);
+    } else if (req.path.startsWith("/post")) {
+      postPageCache(req, res);
+    }
+    next();
+  });
+
+  await app.listen(3000);
+}
+bootstrap();
+```
+
+## Cache-control examples
+
+### Admin page (no-cache)
+
+`/admin` and `/admin/*` are always set to:
+
+- `x-litespeed-cache-control: no-cache`
+
+### Public page (cached publicly)
+
+Default public response header:
+
+- `x-litespeed-cache-control: public,max-age=60`
+
+### Private page (cached privately)
+
+When request has a bypass cookie (for example `session=...`) and `privateOptions.mode` is `"cache"`:
+
+- `x-litespeed-cache-control: private,max-age=180`
+
+### Public cache with tags
+
+```ts
+const applyLSCache = lscacheMiddleware({
+  publicOptions: {
+    maxAge: 300,
+    tags: ["blog", "frontpage"]
+  }
+});
+```
+
+Result:
+
+- `x-litespeed-cache-control: public,max-age=300`
+- `x-litespeed-tag: blog,frontpage`
+
+### Force no-cache like lscache-django
+
+```ts
+const applyLSCache = lscacheMiddleware({
+  publicOptions: { maxAge: 0 }
+});
+// or
+const applyLSCache2 = lscacheMiddleware({
+  publicOptions: { cacheability: "no-cache" }
+});
+```
+
+Both set:
+
+- `x-litespeed-cache-control: no-cache`
+
+## Purge cache examples
+
+```ts
+// lscache.controller.ts
+import { Controller, Post, Req, Res, UnauthorizedException } from "@nestjs/common";
+import type { Request, Response } from "express";
+
+@Controller("lscache")
+export class LSCacheController {
+  @Post("purge-all")
+  purgeAll(@Req() req: Request, @Res() res: Response) {
+    if (req.header("x-lscache-key") !== process.env.LSCACHE_PURGE_TOKEN) {
+      throw new UnauthorizedException("Invalid purge token");
+    }
+    res.setHeader("X-LiteSpeed-Purge", "*");
+    return res.status(200).json({ ok: true, purge: "all" });
+  }
 }
 ```
+
+Test purge-all URL:
+
+```bash
+curl -k -X POST https://your-site.com/lscache/purge-all -H "x-lscache-key: YOUR_TOKEN"
+```
+
+You can also use helper functions (`verifyPurgeRequest`, `buildPurgeTags`, `purgeLSCache`, `purgeAllLSCache`, `purgeLSCacheByTags`) for custom purge endpoint flows.
 
 ### Performance testing
 **Cached case**
@@ -103,9 +187,9 @@ status codes: 50000 2xx, 0 3xx, 0 4xx, 0 5xx
 - This package sets `x-litespeed-cache-control` values for LiteSpeed.
 - Deploy behind LiteSpeed/OpenLiteSpeed with LSCache enabled.
 - `privateOptions.mode` defaults to `"no-cache"`. Set `privateOptions.mode: "cache"` to enable private cache headers for cookie-bypassed users.
-- `/admin` and all subpaths under `/admin/*` are always set to `private,no-cache`, even when `privateOptions.mode` is `"cache"`.
-- Purge helpers support:
-- `purgeAllLSCache()` for global purge
-- `purgeLSCacheByTags(tags)` for tag-based purge
-- `purgeLSCache({ purgeAll, tags, urls })` for full control
+- `/admin` and all subpaths under `/admin/*` are always set to `no-cache`.
+- Purge helpers:
+- `purgeAllLSCache()` for global purge.
+- `purgeLSCacheByTags(tags)` for tag-based purge.
+- `purgeLSCache({ purgeAll, tags, urls })` for full control.
 - Add path rules in LiteSpeed if you need finer-grained cache behavior.

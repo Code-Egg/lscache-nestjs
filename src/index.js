@@ -39,16 +39,19 @@ function withPrivateControl(response, opts = {}) {
     cacheControlHeader = DEFAULT_HEADER,
     mode = "no-cache",
     maxAge = 60,
-    staleWhileRevalidate = 300,
-    staleIfError = 86400
+    staleWhileRevalidate = 0,
+    staleIfError = 0
   } = opts;
 
   if (mode === "cache") {
-    const value = [
-      `private,max-age=${maxAge}`,
-      `stale-while-revalidate=${staleWhileRevalidate}`,
-      `stale-if-error=${staleIfError}`
-    ].join(",");
+    const valueParts = [`private,max-age=${maxAge}`];
+    if (Number(staleWhileRevalidate) > 0) {
+      valueParts.push(`stale-while-revalidate=${staleWhileRevalidate}`);
+    }
+    if (Number(staleIfError) > 0) {
+      valueParts.push(`stale-if-error=${staleIfError}`);
+    }
+    const value = valueParts.join(",");
     setHeaderValue(response, cacheControlHeader, value);
     return;
   }
@@ -63,8 +66,8 @@ function withPublicControl(response, opts = {}) {
     tags = [],
     cacheability = "public",
     maxAge = 60,
-    staleWhileRevalidate = 300,
-    staleIfError = 86400,
+    staleWhileRevalidate = 0,
+    staleIfError = 0,
     vary = ["accept-encoding"]
   } = opts;
 
@@ -73,11 +76,14 @@ function withPublicControl(response, opts = {}) {
     return;
   }
 
-  const value = [
-    `public,max-age=${maxAge}`,
-    `stale-while-revalidate=${staleWhileRevalidate}`,
-    `stale-if-error=${staleIfError}`
-  ].join(",");
+  const valueParts = [`public,max-age=${maxAge}`];
+  if (Number(staleWhileRevalidate) > 0) {
+    valueParts.push(`stale-while-revalidate=${staleWhileRevalidate}`);
+  }
+  if (Number(staleIfError) > 0) {
+    valueParts.push(`stale-if-error=${staleIfError}`);
+  }
+  const value = valueParts.join(",");
 
   setHeaderValue(response, cacheControlHeader, value);
   setHeaderValue(response, "vary", Array.isArray(vary) ? vary.join(",") : String(vary));

@@ -52,18 +52,18 @@ test("public cache header: public,max-age=60", () => {
   applyLSCache(createRequest({ pathname: "/" }), response);
 
   const actual = response.getHeader("x-litespeed-cache-control");
-  assertEqualWithInfo("public cache header", "x-litespeed-cache-control", actual, "public,max-age=60,stale-while-revalidate=300,stale-if-error=86400");
+  assertEqualWithInfo("public cache header", "x-litespeed-cache-control", actual, "public,max-age=60");
 });
 
 test("private cache header for bypass cookie", () => {
   const applyLSCache = lscacheMiddleware({
-    privateOptions: { mode: "cache", maxAge: 180, staleWhileRevalidate: 30, staleIfError: 90 }
+    privateOptions: { mode: "cache", maxAge: 180 }
   });
   const response = createResponse();
   applyLSCache(createRequest({ pathname: "/account", cookie: "session=abc123" }), response);
 
   const actual = response.getHeader("x-litespeed-cache-control");
-  assertEqualWithInfo("private cache header", "x-litespeed-cache-control", actual, "private,max-age=180,stale-while-revalidate=30,stale-if-error=90");
+  assertEqualWithInfo("private cache header", "x-litespeed-cache-control", actual, "private,max-age=180");
 });
 
 test("admin path is no-cache", () => {
@@ -86,7 +86,7 @@ test("public cache with tag", () => {
 
   const actualCache = response.getHeader("x-litespeed-cache-control");
   const actualTag = response.getHeader("x-litespeed-tag");
-  assertEqualWithInfo("public cache with tag", "x-litespeed-cache-control", actualCache, "public,max-age=60,stale-while-revalidate=300,stale-if-error=86400");
+  assertEqualWithInfo("public cache with tag", "x-litespeed-cache-control", actualCache, "public,max-age=60");
   assertEqualWithInfo("public cache with tag", "x-litespeed-tag", actualTag, "blog,frontpage");
 });
 
